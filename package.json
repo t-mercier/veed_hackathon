@@ -1,0 +1,9 @@
+{
+  "name": "veed-fabric-test",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@fal-ai/client": "^1.0.0",
+    "dotenv": "^16.0.0"
+  }
+}
