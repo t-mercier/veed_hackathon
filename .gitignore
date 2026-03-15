@@ -1,1 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual env
+manim-env/
+
+# Manim renders
+media/
+animations/
+
+# OS
+.DS_Store
+
+# Auth
 .env
