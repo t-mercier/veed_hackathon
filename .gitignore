@@ -14,3 +14,7 @@ animations/
 
 # Auth
 .env
+
+# Claude
+.claude_history
+.claude/
