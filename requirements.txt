@@ -1,0 +1,6 @@
+manim
+pycairo
+numpy
+openai
+fal-client
+moviepy

@@ -13,7 +13,7 @@ then
 fi
 
 echo "📦 Installing system dependencies..."
-brew install cairo pango ffmpeg pkg-config
+brew install cairo pango pkg-config
 
 echo "🐍 Creating Python virtual environment..."
 
