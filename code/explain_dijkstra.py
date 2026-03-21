@@ -1,213 +1,282 @@
+import os
 from manim import *
 
+# ---------------------------------------------------------------------------
+# Shared graph data
+# ---------------------------------------------------------------------------
+NODES = ["A", "B", "C", "D", "E", "F"]
+EDGES = [
+    ("A", "B", 4),
+    ("A", "C", 2),
+    ("B", "C", 1),
+    ("B", "D", 5),
+    ("C", "D", 8),
+    ("C", "E", 10),
+    ("D", "F", 2),
+    ("E", "F", 3),
+]
+# Layout kept within safe zone: x ∈ [-5.5, 5.5], y ∈ [-2.5, 2.5]
+NODE_POSITIONS = {
+    "A": LEFT * 3.5,
+    "B": LEFT * 1.5 + UP * 1.8,
+    "C": LEFT * 1.5 + DOWN * 0.9,
+    "D": RIGHT * 0.8 + UP * 1.8,
+    "E": RIGHT * 0.8 + DOWN * 0.9,
+    "F": RIGHT * 3.0,
+}
+C_DEFAULT = BLUE_D
+C_VISITED = GREEN_D
+C_CURRENT = YELLOW
+C_PATH    = ORANGE
 
-class DijkstraScene(Scene):
+# Timing injected by the pipeline so animations pace with the TTS narration.
+STEP_TIME   = float(os.environ.get("MANIM_STEP_TIME",   "2.0"))
+INTRO_WAIT  = float(os.environ.get("MANIM_INTRO_WAIT",  "2.5"))
+OUTRO_WAIT  = float(os.environ.get("MANIM_OUTRO_WAIT",  "3.0"))
+
+
+def _build_graph():
+    """Return (node_circles, node_labels, edge_lines, edge_weight_labels)."""
+    node_circles, node_labels = {}, {}
+    for name in NODES:
+        pos = NODE_POSITIONS[name]
+        circle = Circle(radius=0.32, color=C_DEFAULT, fill_opacity=0.85)
+        circle.move_to(pos)
+        label = Text(name, font_size=20, color=WHITE, weight=BOLD)
+        label.move_to(pos)
+        node_circles[name] = circle
+        node_labels[name]   = label
+
+    edge_lines, edge_weight_labels = {}, {}
+    for u, v, w in EDGES:
+        start, end = NODE_POSITIONS[u], NODE_POSITIONS[v]
+        line = Line(start, end, color=GRAY, stroke_width=2)
+        mid  = (start + end) / 2
+        off  = normalize(rotate_vector(end - start, PI / 2)) * 0.22
+        wlbl = Text(str(w), font_size=16, color=LIGHT_GRAY)
+        wlbl.move_to(mid + off)
+        edge_lines[(u, v)]         = line
+        edge_weight_labels[(u, v)] = wlbl
+
+    return node_circles, node_labels, edge_lines, edge_weight_labels
+
+
+def _make_dist_table(distances):
+    """Small distance table; positioned right side, within safe zone."""
+    table = Table(
+        [[str(distances[n]) if distances[n] < float("inf") else "∞"] for n in NODES],
+        row_labels=[Text(n, font_size=14) for n in NODES],
+        col_labels=[Text("dist", font_size=14)],
+        include_outer_lines=True,
+        line_config={"stroke_width": 1, "color": GRAY},
+        element_to_mobject=lambda el: Text(el, font_size=14),
+    )
+    table.scale(0.48)
+    # Anchor to right edge, vertically centred
+    table.move_to(RIGHT * 5.5)
+    return table
+
+
+def _run_dijkstra():
+    """Return list of (current, dist_snapshot, prev_snapshot) visit order."""
+    INF = float("inf")
+    dist = {n: INF for n in NODES}
+    dist["A"] = 0
+    prev = {n: None for n in NODES}
+    adj  = {n: [] for n in NODES}
+    for u, v, w in EDGES:
+        adj[u].append((v, w))
+        adj[v].append((u, w))
+    order, unvisited = [], set(NODES)
+    while unvisited:
+        cur = min(unvisited, key=lambda x: dist[x])
+        if dist[cur] == float("inf"):
+            break
+        order.append((cur, dict(dist), dict(prev)))
+        unvisited.remove(cur)
+        for nb, wt in adj[cur]:
+            if nb in unvisited and dist[cur] + wt < dist[nb]:
+                dist[nb] = dist[cur] + wt
+                prev[nb] = cur
+    return order, adj
+
+
+# ---------------------------------------------------------------------------
+# Scene 1 — Intro: build the graph and explain the problem
+# ---------------------------------------------------------------------------
+class DijkstraIntro(Scene):
     def construct(self):
-        # Graph definition
-        # Nodes: A, B, C, D, E, F
-        # Edges with weights
-        NODES = ["A", "B", "C", "D", "E", "F"]
-        EDGES = [
-            ("A", "B", 4),
-            ("A", "C", 2),
-            ("B", "C", 1),
-            ("B", "D", 5),
-            ("C", "D", 8),
-            ("C", "E", 10),
-            ("D", "F", 2),
-            ("E", "F", 3),
-        ]
+        title = Text("Dijkstra's Algorithm", font_size=32, color=WHITE)
+        title.move_to(UP * 3.2)
 
-        node_positions = {
-            "A": LEFT * 4,
-            "B": LEFT * 2 + UP * 2,
-            "C": LEFT * 2 + DOWN * 1,
-            "D": RIGHT * 0.5 + UP * 2,
-            "E": RIGHT * 0.5 + DOWN * 1,
-            "F": RIGHT * 3,
-        }
+        subtitle = Text(
+            "Shortest path in a weighted graph",
+            font_size=20, color=GRAY,
+        )
+        subtitle.next_to(title, DOWN, buff=0.2)
 
-        colors = {
-            "default": BLUE_D,
-            "visited": GREEN_D,
-            "current": YELLOW,
-            "path": ORANGE,
-        }
+        nc, nl, el, ewl = _build_graph()
 
-        # --- Build graph visuals ---
-        node_circles = {}
-        node_labels = {}
-        for name in NODES:
-            pos = node_positions[name]
-            circle = Circle(radius=0.35, color=colors["default"], fill_opacity=0.8)
-            circle.move_to(pos)
-            label = Text(name, font_size=22, color=WHITE, weight=BOLD)
-            label.move_to(pos)
-            node_circles[name] = circle
-            node_labels[name] = label
+        # Goal label
+        goal = Text("Goal: shortest path  A → F", font_size=18, color=YELLOW)
+        goal.move_to(DOWN * 3.2)
 
-        edge_lines = {}
-        edge_weight_labels = {}
-        for u, v, w in EDGES:
-            start = node_positions[u]
-            end = node_positions[v]
-            line = Line(start, end, color=GRAY, stroke_width=2)
-            mid = (start + end) / 2
-            offset = normalize(rotate_vector(end - start, PI / 2)) * 0.25
-            wlabel = Text(str(w), font_size=18, color=LIGHT_GRAY)
-            wlabel.move_to(mid + offset)
-            edge_lines[(u, v)] = line
-            edge_weight_labels[(u, v)] = wlabel
+        self.play(Write(title), run_time=1.0)
+        self.play(FadeIn(subtitle), run_time=0.6)
+        self.wait(INTRO_WAIT * 0.3)
 
-        # --- Distance table (top right) ---
-        def make_dist_table(distances):
-            rows = [["Node", "Dist"]] + [
-                [n, str(distances[n]) if distances[n] < float("inf") else "∞"]
-                for n in NODES
-            ]
-            table = Table(
-                [row[1:] for row in rows[1:]],
-                row_labels=[Text(r[0], font_size=16) for r in rows[1:]],
-                col_labels=[Text("Dist", font_size=16)],
-                include_outer_lines=True,
-                line_config={"stroke_width": 1, "color": GRAY},
-                element_to_mobject=lambda el: Text(el, font_size=16),
-            )
-            table.scale(0.55)
-            table.to_corner(UR, buff=0.3)
-            return table
-
-        # --- Title ---
-        title = Text("Dijkstra's Algorithm", font_size=30, color=WHITE)
-        title.to_corner(UL, buff=0.3)
-
-        # --- Animate graph construction ---
-        self.play(Write(title))
         self.play(
-            *[Create(line) for line in edge_lines.values()],
-            *[Write(wl) for wl in edge_weight_labels.values()],
-            run_time=1.5,
+            *[Create(l)  for l in el.values()],
+            *[Write(wl)  for wl in ewl.values()],
+            run_time=2.0,
         )
         self.play(
-            *[DrawBorderThenFill(c) for c in node_circles.values()],
-            *[Write(l) for l in node_labels.values()],
+            *[DrawBorderThenFill(c) for c in nc.values()],
+            *[Write(lb)             for lb in nl.values()],
             run_time=1.5,
         )
+        self.wait(INTRO_WAIT * 0.4)
 
-        # Initial distances
+        self.play(Write(goal), run_time=0.8)
+        self.wait(INTRO_WAIT)
+
+
+# ---------------------------------------------------------------------------
+# Scene 2 — Steps: step-by-step Dijkstra execution
+# ---------------------------------------------------------------------------
+class DijkstraSteps(Scene):
+    def construct(self):
+        title = Text("Dijkstra's Algorithm — Execution", font_size=24, color=WHITE)
+        title.move_to(UP * 3.2)
+        self.play(Write(title), run_time=0.8)
+
+        nc, nl, el, ewl = _build_graph()
+
         INF = float("inf")
-        distances = {n: INF for n in NODES}
-        distances["A"] = 0
-        previous = {n: None for n in NODES}
+        dist_init = {n: INF for n in NODES}
+        dist_init["A"] = 0
 
-        dist_table = make_dist_table(distances)
-        self.play(Create(dist_table))
-        self.wait(0.5)
+        dist_table = _make_dist_table(dist_init)
 
-        # --- Step label ---
-        step_label = Text("Start: A  |  dist[A] = 0", font_size=20, color=YELLOW)
-        step_label.to_edge(DOWN, buff=0.3)
-        self.play(Write(step_label))
-        self.wait(0.5)
+        # Show graph + initial table
+        self.play(
+            *[Create(l)  for l in el.values()],
+            *[Write(wl)  for wl in ewl.values()],
+            run_time=1.5,
+        )
+        self.play(
+            *[DrawBorderThenFill(c) for c in nc.values()],
+            *[Write(lb)             for lb in nl.values()],
+            run_time=1.2,
+        )
+        self.play(Create(dist_table), run_time=0.8)
 
-        # Adjacency list
-        adj = {n: [] for n in NODES}
-        for u, v, w in EDGES:
-            adj[u].append((v, w))
-            adj[v].append((u, w))
+        step_label = Text("Start: dist[A] = 0, all others = ∞", font_size=17, color=YELLOW)
+        step_label.move_to(DOWN * 3.2)
+        self.play(Write(step_label), run_time=0.6)
+        self.wait(STEP_TIME * 0.6)
 
-        visited = set()
-        unvisited = set(NODES)
+        dijkstra_order, adj = _run_dijkstra()
 
-        # --- Dijkstra steps ---
-        steps = [
-            ("A", "B", 4, "Visit A → relax B (0+4=4), C (0+2=2)"),
-            ("A", "C", 2, "Visit A → relax B (0+4=4), C (0+2=2)"),
-            ("C", "B", 3, "Visit C (dist=2) → relax B: 2+1=3 < 4"),
-            ("C", "E", 12, "Visit C → relax E: 2+10=12"),
-            ("B", "D", 8, "Visit B (dist=3) → relax D: 3+5=8"),
-            ("D", "F", 10, "Visit D (dist=8) → relax F: 8+2=10"),
-            ("E", "F", 10, "Visit E (dist=12) → F already 10, no update"),
-        ]
-
-        # Run actual Dijkstra to animate
-        dijkstra_order = []
-        dist_snap = {n: INF for n in NODES}
-        dist_snap["A"] = 0
-        prev_snap = {n: None for n in NODES}
-
-        unvisited2 = set(NODES)
-        while unvisited2:
-            current = min(unvisited2, key=lambda x: dist_snap[x])
-            if dist_snap[current] == INF:
-                break
-            dijkstra_order.append((current, dict(dist_snap), dict(prev_snap)))
-            unvisited2.remove(current)
-            for neighbor, weight in adj[current]:
-                if neighbor in unvisited2:
-                    new_dist = dist_snap[current] + weight
-                    if new_dist < dist_snap[neighbor]:
-                        dist_snap[neighbor] = new_dist
-                        prev_snap[neighbor] = current
-
-        # Animate each step
-        visited_nodes = set()
-        for i, (current, dists, prevs) in enumerate(dijkstra_order):
+        for i, (current, dists, _) in enumerate(dijkstra_order):
             # Highlight current node
-            self.play(
-                node_circles[current].animate.set_color(colors["current"]),
-                run_time=0.4,
-            )
+            self.play(nc[current].animate.set_color(C_CURRENT), run_time=0.6)
 
-            step_text = Text(
+            new_lbl = Text(
                 f"Step {i+1}: Visit {current}  (dist = {dists[current]})",
-                font_size=20,
-                color=YELLOW,
+                font_size=17, color=YELLOW,
             )
-            step_text.to_edge(DOWN, buff=0.3)
-            self.play(Transform(step_label, step_text), run_time=0.3)
+            new_lbl.move_to(DOWN * 3.2)
+            self.play(Transform(step_label, new_lbl), run_time=0.5)
+            self.wait(STEP_TIME * 0.4)
 
-            # Relax neighbors
-            for neighbor, weight in adj[current]:
-                new_d = dists[current] + weight
-                if new_d <= dists.get(neighbor, INF):
-                    key = (current, neighbor) if (current, neighbor) in edge_lines else (neighbor, current)
-                    if key in edge_lines:
+            # Relax edges
+            for nb, wt in adj[current]:
+                new_d = dists[current] + wt
+                if new_d <= dists.get(nb, INF):
+                    key = (current, nb) if (current, nb) in el else (nb, current)
+                    if key in el:
                         self.play(
-                            edge_lines[key].animate.set_color(YELLOW).set_stroke(width=4),
-                            run_time=0.3,
+                            el[key].animate.set_color(YELLOW).set_stroke(width=3),
+                            run_time=0.5,
                         )
+                        self.wait(STEP_TIME * 0.25)
 
             # Mark visited
-            visited_nodes.add(current)
-            self.play(
-                node_circles[current].animate.set_color(colors["visited"]),
-                run_time=0.3,
-            )
+            self.play(nc[current].animate.set_color(C_VISITED), run_time=0.5)
 
-            # Update table
-            new_table = make_dist_table(dists)
-            self.play(Transform(dist_table, new_table), run_time=0.4)
-            self.wait(0.3)
+            # Update distance table
+            new_table = _make_dist_table(dists)
+            self.play(Transform(dist_table, new_table), run_time=0.6)
+            self.wait(STEP_TIME * 0.5)
 
-        # --- Highlight shortest path A → F ---
-        path_label = Text("Shortest path: A → C → B → D → F  (cost: 10)", font_size=20, color=ORANGE)
-        path_label.to_edge(DOWN, buff=0.3)
-        self.play(Transform(step_label, path_label))
+        done_lbl = Text("All nodes visited — done!", font_size=17, color=GREEN)
+        done_lbl.move_to(DOWN * 3.2)
+        self.play(Transform(step_label, done_lbl), run_time=0.5)
+        self.wait(STEP_TIME * 0.4)
 
-        path_edges = [("A", "C"), ("C", "B"), ("B", "D"), ("D", "F")]
-        path_nodes_order = ["A", "C", "B", "D", "F"]
+
+# ---------------------------------------------------------------------------
+# Scene 3 — Outro: global view — full graph + optimal path highlighted
+# ---------------------------------------------------------------------------
+class DijkstraOutro(Scene):
+    def construct(self):
+        title = Text("Shortest Path Found", font_size=32, color=WHITE)
+        title.move_to(UP * 3.2)
+        self.play(Write(title), run_time=0.8)
+
+        nc, nl, el, ewl = _build_graph()
+
+        # Show all nodes as visited (green)
+        for c in nc.values():
+            c.set_color(C_VISITED)
+
+        self.play(
+            *[Create(l)  for l in el.values()],
+            *[Write(wl)  for wl in ewl.values()],
+            run_time=1.5,
+        )
+        self.play(
+            *[DrawBorderThenFill(c) for c in nc.values()],
+            *[Write(lb)             for lb in nl.values()],
+            run_time=1.0,
+        )
+        self.wait(OUTRO_WAIT * 0.2)
+
+        # Final distances summary (static table)
+        final_dists = {"A": 0, "B": 3, "C": 2, "D": 8, "E": 12, "F": 10}
+        final_table = _make_dist_table(final_dists)
+        self.play(Create(final_table), run_time=0.8)
+        self.wait(OUTRO_WAIT * 0.3)
+
+        # Highlight optimal path  A → C → B → D → F
+        path_edges  = [("A", "C"), ("C", "B"), ("B", "D"), ("D", "F")]
+        path_nodes  = ["A", "C", "B", "D", "F"]
+
+        path_lbl = Text("A → C → B → D → F  (cost: 10)", font_size=20, color=ORANGE)
+        path_lbl.move_to(DOWN * 3.2)
+        self.play(Write(path_lbl), run_time=0.7)
 
         for u, v in path_edges:
-            key = (u, v) if (u, v) in edge_lines else (v, u)
+            key = (u, v) if (u, v) in el else (v, u)
             self.play(
-                edge_lines[key].animate.set_color(ORANGE).set_stroke(width=5),
-                run_time=0.4,
+                el[key].animate.set_color(ORANGE).set_stroke(width=5),
+                run_time=0.6,
             )
-        for n in path_nodes_order:
-            self.play(
-                node_circles[n].animate.set_color(ORANGE),
-                run_time=0.3,
-            )
+            self.wait(0.3)
 
-        self.wait(2)
+        self.play(
+            *[nc[n].animate.set_color(ORANGE) for n in path_nodes],
+            run_time=0.7,
+        )
+        self.wait(OUTRO_WAIT * 0.5)
+
+        # Summary text
+        summary = VGroup(
+            Text("Greedy: always expand the nearest unvisited node", font_size=15, color=LIGHT_GRAY),
+            Text("Works on non-negative weights · O((V+E) log V)", font_size=15, color=LIGHT_GRAY),
+        ).arrange(DOWN, buff=0.2)
+        summary.move_to(UP * 0.6 + RIGHT * 2.0)
+
+        self.play(FadeIn(summary), run_time=1.0)
+        self.wait(OUTRO_WAIT)
