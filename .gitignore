@@ -19,3 +19,6 @@ animations/
 # Claude
 .claude_history
 .claude/
+
+# Idea vim
+.idea
