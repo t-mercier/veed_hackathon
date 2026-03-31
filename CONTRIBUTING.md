@@ -11,7 +11,7 @@ Thanks for your interest in contributing! This project turns code and concepts i
 
 ## What to work on
 
-Check the [open issues](https://github.com/t-mercier/veed_hackathon/issues) — anything labeled **good first issue** or **help wanted** is a great starting point.
+Check the [open issues](https://github.com/t-mercier/code-visual-explainer/issues) — anything labeled **good first issue** or **help wanted** is a great starting point.
 
 ### Known areas that need help
 

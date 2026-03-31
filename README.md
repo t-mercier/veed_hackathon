@@ -1,5 +1,7 @@
 # Animated Explainer Studio
 
+> ⭐ If you find this useful, please star the repo — it helps others discover the project!
+
 AI-powered visual explanations for **code snippets**, **programming concepts**, and **GitHub repositories**.
 
 Instead of forcing users to reconstruct a system from raw code, Animated Explainer Studio turns technical content into a guided visual walkthrough.
@@ -18,7 +20,8 @@ Instead of forcing users to reconstruct a system from raw code, Animated Explain
 ### 1. Clone and install
 
 ```bash
-git clone <repo-url> && cd veed_hackathon
+git clone https://github.com/t-mercier/code-visual-explainer.git
+cd code-visual-explainer
 
 # Backend
 cd server
@@ -153,3 +156,17 @@ components, responsibilities, relationships, and flow — rendered as a scene-ba
 ├── package.json     # Root scripts (dev/build shortcuts)
 └── requirements.txt # Python dependencies
 ```
+
+---
+
+## Contributing
+
+We welcome contributions! Check out the [Contributing Guide](CONTRIBUTING.md) and the [open issues](https://github.com/t-mercier/code-visual-explainer/issues).
+
+**Good starting points:**
+- Issues labeled [`good first issue`](https://github.com/t-mercier/code-visual-explainer/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+- Issues labeled [`help wanted`](https://github.com/t-mercier/code-visual-explainer/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)
+
+## License
+
+[MIT](LICENSE)
