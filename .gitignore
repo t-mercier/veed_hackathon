@@ -1,24 +1,65 @@
-# Python
+# ── OS ──────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Environment / secrets ───────────────────────
+.env
+.env.*
+!.env.template
+
+# ── Python ──────────────────────────────────────
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
 .python-version
-
-# Virtual env
 manim-env/
+.venv/
+venv/
 
-# Manim renders
+# ── Node / JS ───────────────────────────────────
+node_modules/
+*.local
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# ── Build output ────────────────────────────────
+dist/
+dist-ssr/
+build/
+
+# ── Generated pipeline output (videos, audio, renders) ─
+output/
 media/
 animations/
 
-# OS
-.DS_Store
+# ── Generated video / audio / image artifacts ──
+*.mp4
+*.mp3
+*.wav
+*.webm
+*.avi
+*.mov
+*.mkv
 
-# Auth
-.env
+# ── Logs ────────────────────────────────────────
+logs/
+*.log
 
-# Claude
+# ── IDE / editor ────────────────────────────────
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ── Claude / Copilot artifacts ──────────────────
 .claude_history
-.claude/
+.claude/output/
 
-# Idea vim
-.idea
+# ── Misc ────────────────────────────────────────
+*.local
+lerna-debug.log*

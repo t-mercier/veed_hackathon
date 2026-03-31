@@ -1,6 +1,35 @@
+# ── Animation — code snippet path (Timothee) ─────────────────────────────────
+# System deps: brew install cairo pango pkg-config ffmpeg
+# LaTeX optional (for MathTex): brew install --cask mactex-no-gui
 manim
+moderngl
 pycairo
 numpy
-openai
-fal-client
-moviepy
+
+# ── LLM — script + architecture generation (Timothee) ────────────────────────
+mistralai                  # Mistral Small — free tier at console.mistral.ai
+
+# ── TTS + Avatar — Bote's pipeline ───────────────────────────────────────────
+# System dep: brew install ffmpeg
+fal-client                 # fal.ai — VEED Fabric 1.0 avatar video generation
+runware                    # Runware TTS — text to speech audio
+websockets                 # required by runware SDK
+requests                   # HTTP downloads (avatar video, audio files)
+
+# ── Web framework (Timothee) ─────────────────────────────────────────────────
+fastapi[standard]
+uvicorn[standard]
+python-multipart
+
+# ── Config ───────────────────────────────────────────────────────────────────
+pydantic-settings
+pydantic
+python-dotenv
+
+# ── Supabase — update video_requests status from backend ─────────────────────
+supabase
+
+# ── Enrichment — URL / GitHub repo context (Timothee) ────────────────────────
+httpx
+beautifulsoup4
+

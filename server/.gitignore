@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+.python-version
+
+# Virtual env
+manim-env/
+
+# Manim renders
+media/
+animations/
+
+# Generated job output (runtime artifacts — never commit)
+output/
+
+# OS
+.DS_Store
+
+# Auth
+.env
+
+# Claude
+.claude_history
+.claude/output/
