@@ -6,4 +6,4 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /** Backend API base URL — single source of truth for all fetch calls. */
-export const API_BASE = import.meta.env.VITE_API_URL || "https://vizifi.onrender.com";
+export const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";

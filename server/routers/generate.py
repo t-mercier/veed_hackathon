@@ -35,7 +35,6 @@ from pipeline.manim_render import render_manim
 from pipeline.final_merge import merge_final
 from database import job_dir
 from config import settings
-from supabase_client import update_request_status
 
 logger = logging.getLogger(__name__)
 
@@ -123,14 +122,9 @@ async def preview_voice(voice: str, robotic: bool = False):
 
 
 async def _run_pipeline(job_id: str, req: GenerateRequest, base_url: str = "http://localhost:8000"):
-    rid = req.request_id  # Supabase video_requests row ID (may be None)
     try:
         out_dir = job_dir(job_id)
         is_github_url = req.prompt.strip().startswith("https://github.com/")
-        jtype = "repo" if is_github_url else "prompt"
-
-        if rid:
-            update_request_status(rid, "generating_script", backend_job_id=job_id, job_type=jtype)
 
         if is_github_url:
             await _run_repo_pipeline(job_id, req, out_dir, base_url)
@@ -141,25 +135,15 @@ async def _run_pipeline(job_id: str, req: GenerateRequest, base_url: str = "http
             logger.info("[%s] Prompt classified as: %s", job_id, prompt_type)
 
             if prompt_type == "concept_algo":
-                if rid:
-                    update_request_status(rid, "generating_script", job_type="concept_algo")
                 await _run_concept_algo_pipeline(job_id, req, out_dir, base_url)
             else:
                 await _run_prompt_pipeline(job_id, req, out_dir, base_url)
 
-        if rid:
-            video_url = _jobs[job_id].get("final_url") or _jobs[job_id].get("animation_url")
-            update_request_status(rid, "completed", video_url=video_url)
-
     except HTTPException as exc:
         _set(job_id, status=JobStatus.failed, progress="Failed", error=exc.detail)
-        if rid:
-            update_request_status(rid, "failed", error=exc.detail)
         raise
     except Exception as exc:
         _set(job_id, status=JobStatus.failed, progress="Failed", error=str(exc))
-        if rid:
-            update_request_status(rid, "failed", error=str(exc))
         raise
 
 
@@ -168,7 +152,6 @@ async def _run_pipeline(job_id: str, req: GenerateRequest, base_url: str = "http
 async def _run_repo_pipeline(
     job_id: str, req: GenerateRequest, out_dir: Path, base_url: str,
 ):
-    rid = req.request_id
     _set(job_id, status=JobStatus.running, job_type=JobType.repo, progress="Ingesting GitHub repo…")
     logger.info("[%s] Ingesting repo: %s", job_id, req.prompt.strip())
 
@@ -185,8 +168,6 @@ async def _run_repo_pipeline(
 
     # Stage 1: Architecture
     _set(job_id, progress="Analyzing architecture…")
-    if rid:
-        update_request_status(rid, "generating_script")
     architecture = await asyncio.to_thread(
         analyze_repo, repo_content, req.mood, req.level,
     )
@@ -196,8 +177,6 @@ async def _run_repo_pipeline(
 
     # Stage 2: Storyboard
     _set(job_id, progress="Generating storyboard…")
-    if rid:
-        update_request_status(rid, "rendering")
     storyboard = await asyncio.to_thread(generate_storyboard, architecture)
     sb_dict = storyboard.model_dump()
     (out_dir / "storyboard.json").write_text(json.dumps(sb_dict, indent=2))
@@ -211,8 +190,6 @@ async def _run_repo_pipeline(
     # ── Per-scene TTS audio ───────────────────────────────────────────────────
     if settings.runware_api_key:
         _set(job_id, progress="Generating scene audio…")
-        if rid:
-            update_request_status(rid, "adding_voiceover")
         scene_voice = req.voice or AVATAR_VOICES.get(req.avatar or "", "Oliver")
         logger.info("[%s] Generating per-scene TTS (%d scenes) voice=%s robotic=%s", job_id, len(narration.scenes), scene_voice, req.robotic)
 
@@ -251,8 +228,6 @@ async def _run_repo_pipeline(
     # ── Avatar videos (intro + outro talking head) ────────────────────────────
     if settings.runware_api_key and settings.fal_key:
         _set(job_id, progress="Generating avatar videos…")
-        if rid:
-            update_request_status(rid, "finalizing")
         avatar_image_url = req.avatar_image_url or AVATAR_IMAGES.get(req.avatar or "", settings.avatar_image_url) or settings.avatar_image_url
         avatar_voice = req.voice or AVATAR_VOICES.get(req.avatar or "", "Oliver")
         try:
@@ -280,14 +255,11 @@ async def _run_repo_pipeline(
 async def _run_prompt_pipeline(
     job_id: str, req: GenerateRequest, out_dir: Path, base_url: str,
 ):
-    rid = req.request_id
     _set(job_id, status=JobStatus.running, job_type=JobType.prompt, progress="Enriching prompt…")
     enriched_prompt = await enrich_prompt(req.prompt, req.url)
 
     # Stage 1: Structured explanation
     _set(job_id, progress="Analyzing concept…")
-    if rid:
-        update_request_status(rid, "generating_script")
     explanation = await asyncio.to_thread(
         analyze_prompt, enriched_prompt, req.mood, req.level,
     )
@@ -297,8 +269,6 @@ async def _run_prompt_pipeline(
 
     # Stage 2: Storyboard
     _set(job_id, progress="Generating storyboard…")
-    if rid:
-        update_request_status(rid, "rendering")
     storyboard = await asyncio.to_thread(generate_prompt_storyboard, explanation)
     sb_dict = storyboard.model_dump()
     (out_dir / "storyboard.json").write_text(json.dumps(sb_dict, indent=2))
@@ -312,8 +282,6 @@ async def _run_prompt_pipeline(
     # ── Per-scene TTS audio ───────────────────────────────────────────────────
     if settings.runware_api_key:
         _set(job_id, progress="Generating scene audio…")
-        if rid:
-            update_request_status(rid, "adding_voiceover")
         scene_voice = req.voice or AVATAR_VOICES.get(req.avatar or "", "Oliver")
         logger.info("[%s] Generating per-scene TTS (%d scenes) voice=%s robotic=%s", job_id, len(narration.scenes), scene_voice, req.robotic)
 
@@ -351,8 +319,6 @@ async def _run_prompt_pipeline(
     # ── Avatar videos (intro + outro talking head) ────────────────────────────
     if settings.runware_api_key and settings.fal_key:
         _set(job_id, progress="Generating avatar videos…")
-        if rid:
-            update_request_status(rid, "finalizing")
         avatar_image_url = req.avatar_image_url or AVATAR_IMAGES.get(req.avatar or "", settings.avatar_image_url) or settings.avatar_image_url
         avatar_voice = req.voice or AVATAR_VOICES.get(req.avatar or "", "Oliver")
         try:
@@ -380,15 +346,12 @@ async def _run_concept_algo_pipeline(
     job_id: str, req: GenerateRequest, out_dir: Path, base_url: str,
 ):
     """Premium concept/algo path: single-scene Manim animation."""
-    rid = req.request_id
     _set(job_id, status=JobStatus.running, job_type=JobType.concept_algo, progress="Enriching prompt…")
 
     enriched_prompt = await enrich_prompt(req.prompt, req.url)
 
     # Stage 1: Generate constrained single-scene Manim
     _set(job_id, progress="Generating concept animation…")
-    if rid:
-        update_request_status(rid, "generating_script")
     concept_result = await asyncio.to_thread(
         generate_concept_manim, enriched_prompt, req.mood, req.level,
     )
@@ -398,8 +361,6 @@ async def _run_concept_algo_pipeline(
 
     # Stage 2: Render Manim
     _set(job_id, progress="Rendering animation…")
-    if rid:
-        update_request_status(rid, "rendering")
     try:
         animation_path = await render_manim(
             out_dir,
@@ -429,8 +390,6 @@ async def _run_concept_algo_pipeline(
     # ── TTS audio for the info narration ──────────────────────────────────────
     if settings.runware_api_key:
         _set(job_id, progress="Generating voiceover…")
-        if rid:
-            update_request_status(rid, "adding_voiceover")
         scene_voice = req.voice or AVATAR_VOICES.get(req.avatar or "", "Oliver")
 
         # Generate info narration audio
@@ -445,8 +404,6 @@ async def _run_concept_algo_pipeline(
     # ── Avatar videos (intro + outro) + final merge ───────────────────────────
     if settings.runware_api_key and settings.fal_key:
         _set(job_id, progress="Generating avatar videos…")
-        if rid:
-            update_request_status(rid, "finalizing")
         avatar_image_url = req.avatar_image_url or AVATAR_IMAGES.get(req.avatar or "", settings.avatar_image_url) or settings.avatar_image_url
         avatar_voice = req.voice or AVATAR_VOICES.get(req.avatar or "", "Oliver")
         try:

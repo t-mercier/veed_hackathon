@@ -38,7 +38,7 @@ class GenerateRequest(BaseModel):
     avatar_image_url: Optional[str] = None  # direct image URL override
     voice: Optional[str] = None           # TTS voice override
     robotic: bool = False                 # apply pitch/speed robotic effect
-    request_id: Optional[str] = None      # Supabase video_requests row ID
+    request_id: Optional[str] = None      # external tracking ID (unused in local mode)
 
 
 class TTSScriptResponse(BaseModel):

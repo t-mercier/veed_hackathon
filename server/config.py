@@ -16,10 +16,6 @@ class Settings(BaseSettings):
     fal_key: str = ""
     runware_api_key: str = ""
 
-    # Supabase — for updating video_requests status
-    supabase_url: str = ""
-    supabase_service_role_key: str = ""
-
     # Default avatar image (fal.ai public URL — no upload needed)
     avatar_image_url: str = (
         "https://v3.fal.media/files/koala/NLVPfOI4XL1cWT2PmmqT3_Hope.png"

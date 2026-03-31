@@ -1,10 +1,6 @@
 /** Concepts page — browse pre-made code/concept demo videos (no backend generation). */
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, Crown, Download, Play } from "lucide-react";
-import { Navigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { Check, ChevronDown, Download, Play } from "lucide-react";
 import AlgorithmBrowser, { type AlgorithmItem } from "@/components/AlgorithmBrowser";
 import { getCookingMessage } from "@/lib/cooking-messages";
 
@@ -20,9 +16,6 @@ const premadeItems = [
 const COOKING_ROTATE_INTERVAL = 2000;
 
 const Concepts = () => {
-  const { user, loading, isPremium, profileLoading, refreshProfile } = useAuth();
-  const [upgrading, setUpgrading] = useState(false);
-
   const [selectedPremade, setSelectedPremade] = useState<string | null>(null);
   const [selectedPremadeFile, setSelectedPremadeFile] = useState<string | null>(null);
   const [browserOpen, setBrowserOpen] = useState(false);
@@ -59,7 +52,6 @@ const Concepts = () => {
     timerRef.current.forEach(clearTimeout);
     timerRef.current = [];
 
-    // Fake ~5s delay then reveal the pre-made video
     const t = setTimeout(() => {
       setGenerating(false);
       setVideoUrl(file);
@@ -72,29 +64,16 @@ const Concepts = () => {
     setSelectedPremadeFile(item.file);
   };
 
-  if (loading || profileLoading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
-      </div>
-    );
-  }
-
-  const IS_DEV = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-  if (!user && !IS_DEV) return <Navigate to="/login" replace />;
-
   const activePremadeList = premadeItems;
 
   return (
     <div className="px-6 py-12">
       <div className="mx-auto max-w-3xl">
-        {/* Header */}
         <h1 className="font-display text-3xl font-bold">Explore Video Explanations</h1>
         <p className="mt-2 text-muted-foreground">
           Pick a topic below and watch an AI-generated animated explanation.
         </p>
 
-        {/* Premade video grid */}
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           {activePremadeList.map((item) => (
             <button
@@ -129,7 +108,6 @@ const Concepts = () => {
           ))}
         </div>
 
-        {/* Selected from browser (if not in default list) */}
         {selectedPremade && !activePremadeList.find((i) => i.id === selectedPremade) && (
           <div className="mt-3 flex items-center gap-3 rounded-2xl border-2 border-accent bg-accent/10 p-4 shadow-md shadow-accent/10">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
@@ -140,7 +118,6 @@ const Concepts = () => {
           </div>
         )}
 
-        {/* See more button */}
         <button
           onClick={() => setBrowserOpen(true)}
           className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-accent transition-colors hover:text-accent/80"
@@ -148,7 +125,6 @@ const Concepts = () => {
           See more <ChevronDown className="h-4 w-4" />
         </button>
 
-        {/* Algorithm browser dialog */}
         <AlgorithmBrowser open={browserOpen} onClose={() => setBrowserOpen(false)} onSelect={handleBrowserSelect} />
 
         <div className="mt-8">
@@ -161,7 +137,6 @@ const Concepts = () => {
           </button>
         </div>
 
-        {/* Cooking animation — consistent with Premium mode */}
         {generating && (
           <div className="mt-6 flex flex-col items-center justify-center rounded-2xl border bg-card p-12 text-center">
             <div className="relative mb-6">
@@ -177,7 +152,6 @@ const Concepts = () => {
           </div>
         )}
 
-        {/* Video player */}
         {videoUrl && (
           <div className="mt-6 overflow-hidden rounded-2xl border bg-card shadow-lg">
             <div className="relative aspect-video bg-black">
@@ -195,39 +169,6 @@ const Concepts = () => {
                 <Download className="h-4 w-4" /> Download
               </a>
             </div>
-          </div>
-        )}
-
-        {/* Upgrade banner — only for free users */}
-        {!isPremium && (
-          <div className="mt-12 rounded-2xl border border-accent/20 bg-accent/5 p-6 text-center">
-            <Crown className="mx-auto h-8 w-8 text-accent" />
-            <h3 className="mt-3 font-display text-lg font-semibold">Want custom videos?</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Upgrade to Premium to write your own prompts, choose avatars, and customise mood & level.
-            </p>
-            <button
-              onClick={async () => {
-                if (!user || upgrading) return;
-                setUpgrading(true);
-                const { error } = await supabase
-                  .from("profiles")
-                  .update({ tier: "premium" })
-                  .eq("user_id", user.id);
-                if (error) {
-                  toast({ title: "Error", description: "Upgrade failed. Please try again.", variant: "destructive" });
-                } else {
-                  await refreshProfile();
-                  toast({ title: "🎉 Welcome to Premium!", description: "You now have full access to custom video generation." });
-                }
-                setUpgrading(false);
-              }}
-              disabled={upgrading}
-              className="mt-4 inline-flex h-10 items-center gap-2 rounded-xl bg-accent px-6 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:opacity-50"
-            >
-              {upgrading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crown className="h-4 w-4" />}
-              {upgrading ? "Upgrading…" : "Upgrade to Premium"}
-            </button>
           </div>
         )}
       </div>

@@ -26,9 +26,6 @@ pydantic-settings
 pydantic
 python-dotenv
 
-# ── Supabase — update video_requests status from backend ─────────────────────
-supabase
-
 # ── Enrichment — URL / GitHub repo context (Timothee) ────────────────────────
 httpx
 beautifulsoup4
